@@ -17,7 +17,7 @@ var bot = new TelegramBot(process.env["URUDOLAR_TOKEN"]);
 
 var lastValue={}
 
-var target = '@uruguaydolarchannel'
+var target = '@urudolarchannel'
 
 
 function getCurrency(callback){
