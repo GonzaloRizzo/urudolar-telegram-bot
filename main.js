@@ -13,7 +13,7 @@ var cheerio = require('cheerio');
 
 moment.locale('es');
 
-var bot = new TelegramBot(process.env["URUDOLAR_TOKEN"]);
+var bot = new TelegramBot(process.env["URUDOLAR_TOKEN"], {polling: true});
 
 var lastValue={}
 
@@ -86,3 +86,15 @@ function sendCurrency(){
     cron.schedule('*/5 * * * *', sendCurrency)
     sendCurrency()
   })
+
+
+bot.on('message', function(msg){
+  if(val=Number(msg.text)){
+    var text =
+      emoji.get('moneybag') + " <b>" + moment().format('LLL') + "</b> \n\n" +
+      " <b>Dolar a Peso:</b> USD " + val + " = " + "UYU " + parseFloat(lastValue.buy*val).toFixed(2) + "\n" +
+      " <b>Peso a Dolar:</b> UYU " + val + " = " + "USD " + parseFloat(val/lastValue.buy).toFixed(2)
+
+    bot.sendMessage(msg.chat.id, text, { parse_mode: "HTML" })
+  }
+})
