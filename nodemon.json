@@ -1,4 +1,4 @@
 {
 	  "verbose": true,
-	    "ignore": ["last.json"]
+	    "ignore": ["cache.json"]
 }

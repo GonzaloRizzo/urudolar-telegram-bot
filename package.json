@@ -1,6 +1,6 @@
 {
   "name": "uruguayan-dolar-bot",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Bot for broadcasting the current dolar currency of uruguay",
   "main": "main.js",
   "scripts": {
@@ -12,8 +12,10 @@
     "cheerio": "^0.22.0",
     "moment": "^2.15.1",
     "momentjs": "^1.1.17",
+    "mz": "^2.6.0",
     "node-cron": "^1.1.2",
     "node-emoji": "^1.4.1",
-    "node-telegram-bot-api": "^0.23.3"
+    "node-telegram-bot-api": "^0.23.3",
+    "request-promise-native": "^1.0.3"
   }
 }

@@ -1,32 +1,25 @@
 var TelegramBot = require('node-telegram-bot-api');
-var cron = require('node-cron');
 var emoji = require('node-emoji');
 var moment = require('moment');
-var fs = require('fs')
-var request = require('request');
+var fs = require("mz/fs");
+var rp = require('request-promise-native');
 var cheerio = require('cheerio');
-
-/*
-  TODO: Use Promises!!!
-  TODO: Add logs
-*/
 
 moment.locale('es');
 
-var bot = new TelegramBot(process.env["URUDOLAR_TOKEN"], {polling: true});
-
 var lastValue={}
 
-var target = '@urudolarchannel'
-
-
 function getCurrency(callback){
-  request("http://uy.cotizacion-dolar.com/", (error, response, html) => {
-    var $ = cheerio.load(html)
-    callback(error,{
-      buy:  $(".cc-2b span").text().trim(),
-      sell: $(".cc-3b span").text().trim()
+  return new Promise((resolve, reject)=>{
+    rp("http://uy.cotizacion-dolar.com/")
+    .then((html)=>{
+      var $ = cheerio.load(html)
+      resolve({
+        buy:  $(".cc-2b span").text().trim(),
+        sell: $(".cc-3b span").text().trim()
+      })
     })
+    .catch(reject)
   })
 }
 
@@ -40,22 +33,20 @@ function getUpDownEmoji(val){
   }
 }
 
-function sendCurrency(){
-  getCurrency(function(error, currentVal){
-
-    if (error) return console.log(error)
-
+function sendCurrency(bot, target){
+  return getCurrency()
+  .then((currentVal) => {
     if ((currentVal.sell != lastValue.sell) || (currentVal.buy != lastValue.buy)) {
-
-      console.log("Changed!")
-
-      sell_diff=currentVal.sell-lastValue.sell
-      buy_diff=currentVal.buy-lastValue.buy
+console.log(JSON.stringify({timestamp:Date.now(),currency:currentVal}))
+      var sell_diff = currentVal.sell - lastValue.sell
+      var buy_diff = currentVal.buy - lastValue.buy
       if (!sell_diff) sell_diff=0
       if (!buy_diff) buy_diff=0
 
       lastValue=currentVal
-      fs.writeFile("last.json", JSON.stringify(lastValue), "utf8", () =>{
+
+      fs.writeFile("cache.json", JSON.stringify(lastValue, null, 4))
+      .then(()=>{
 
         var msg =
           emoji.get('moneybag') + " <b>" + moment().format('LLL') + "</b> \n\n" +
@@ -66,35 +57,42 @@ function sendCurrency(){
           parse_mode: "HTML"
         }
 
-        bot.sendMessage(target,msg, opt)
+        return bot.sendMessage(target, msg, opt)
+
       })
     }
   })
 }
 
 
-  fs.readFile("last.json", "utf8", (err,data) => {
-    try {
+Promise.all([fs.readFile("cache.json"), fs.readFile("config.json")])
+.then(([cache_file, config_file]) => {
 
-      data=JSON.parse(data)
-      if (data.hasOwnProperty("buy") && data.hasOwnProperty("sell")){
-        lastValue=data
-      }
-    }catch (SyntaxError) {
+  var cache = {}
+  var config = {}
+
+  try {
+    cache = JSON.parse(cache_file)
+    config = JSON.parse(config_file)
+  } catch (SyntaxError) {}
+
+  if (cache.hasOwnProperty("buy") && cache.hasOwnProperty("sell")){
+    lastValue = cache
+  }
+
+
+  if (config.hasOwnProperty("telegram_token") && config.hasOwnProperty("target")){
+    var bot = new TelegramBot(config.telegram_token);
+
+    var send = function (){
+      sendCurrency(bot, config.target)
     }
 
-    cron.schedule('*/5 * * * *', sendCurrency)
-    sendCurrency()
-  })
+    send()
+    setInterval(send, 5000)
 
-
-bot.on('message', function(msg){
-  if(val=Number(msg.text)){
-    var text =
-      emoji.get('moneybag') + " <b>" + moment().format('LLL') + "</b> \n\n" +
-      " <b>Dolar a Peso:</b> USD " + val + " = " + "UYU " + parseFloat(lastValue.buy*val).toFixed(2) + "\n" +
-      " <b>Peso a Dolar:</b> UYU " + val + " = " + "USD " + parseFloat(val/lastValue.buy).toFixed(2)
-
-    bot.sendMessage(msg.chat.id, text, { parse_mode: "HTML" })
+  }else{
+    console.log("Invalid config.json")
   }
+
 })
