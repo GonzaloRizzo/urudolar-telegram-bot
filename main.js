@@ -11,13 +11,23 @@ var lastValue={}
 
 function getCurrency(callback){
   return new Promise((resolve, reject)=>{
-    rp("http://uy.cotizacion-dolar.com/")
+    rp('https://www.portal.brou.com.uy/')
     .then((html)=>{
       var $ = cheerio.load(html)
-      resolve({
-        buy:  $(".cc-2b span").text().trim(),
-        sell: $(".cc-3b span").text().trim()
-      })
+
+      var currency = {
+        buy:  $(".portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(2) > div > p").text().trim().replace(",", "."),
+        sell: $(".portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(4) > div > p").text().trim().replace(",", ".")
+      }
+      if(parseInt(currency.buy) && parseInt(currency.sell)){
+        resolve(currency)
+      }else {
+
+        reject("Not a Number " + JSON.stringify({
+          buy:  $(".cc-2b").html(),
+          sell: $(".cc-3b").html()
+        }))
+      }
     })
     .catch(reject)
   })
@@ -37,7 +47,9 @@ function sendCurrency(bot, target){
   return getCurrency()
   .then((currentVal) => {
     if ((currentVal.sell != lastValue.sell) || (currentVal.buy != lastValue.buy)) {
-console.log(JSON.stringify({timestamp:Date.now(),currency:currentVal}))
+	    console.log(currentVal)
+	    console.log(lastValue)
+      console.log(JSON.stringify({timestamp:Date.now(),currency:currentVal}))
       var sell_diff = currentVal.sell - lastValue.sell
       var buy_diff = currentVal.buy - lastValue.buy
       if (!sell_diff) sell_diff=0
@@ -62,7 +74,17 @@ console.log(JSON.stringify({timestamp:Date.now(),currency:currentVal}))
       })
     }
   })
+  .catch((err)=>{
+	  if (err.name == "RequestError"){
+		  console.error("Couldn't connect")
+	  }else{
+    		console.error(JSON.stringify(err))
+
+	  }
+  })
 }
+
+getCurrency().then(console.log)
 
 
 Promise.all([fs.readFile("cache.json"), fs.readFile("config.json")])
