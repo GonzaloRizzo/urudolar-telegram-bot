@@ -47,9 +47,9 @@ function sendCurrency(bot, target){
   return getCurrency()
   .then((currentVal) => {
     if ((currentVal.sell != lastValue.sell) || (currentVal.buy != lastValue.buy)) {
-	    console.log(currentVal)
-	    console.log(lastValue)
-      console.log(JSON.stringify({timestamp:Date.now(),currency:currentVal}))
+
+      console.log(JSON.stringify({timestamp:Date.now(), currency:currentVal}))
+
       var sell_diff = currentVal.sell - lastValue.sell
       var buy_diff = currentVal.buy - lastValue.buy
       if (!sell_diff) sell_diff=0
@@ -84,7 +84,6 @@ function sendCurrency(bot, target){
   })
 }
 
-getCurrency().then(console.log)
 
 
 Promise.all([fs.readFile("cache.json"), fs.readFile("config.json")])
