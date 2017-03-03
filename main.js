@@ -84,18 +84,17 @@ function sendCurrency(bot, target){
   })
 }
 
+function parseConfigFile(file){
+  return new Promise((resolve, reject) => {
+    fs.readFile(file)
+    .then((content) => resolve(JSON.parse(content)))
+    .catch(() => resolve({}))
+  })
+}
 
 
-Promise.all([fs.readFile("cache.json"), fs.readFile("config.json")])
-.then(([cache_file, config_file]) => {
-
-  var cache = {}
-  var config = {}
-
-  try {
-    cache = JSON.parse(cache_file)
-    config = JSON.parse(config_file)
-  } catch (SyntaxError) {}
+Promise.all([parseConfigFile("cache.json"), parseConfigFile("config.json")])
+.then(([cache, config]) => {
 
   if (cache.hasOwnProperty("buy") && cache.hasOwnProperty("sell")){
     lastValue = cache
@@ -105,7 +104,7 @@ Promise.all([fs.readFile("cache.json"), fs.readFile("config.json")])
   if (config.hasOwnProperty("telegram_token") && config.hasOwnProperty("target")){
     var bot = new TelegramBot(config.telegram_token);
 
-    var send = function (){
+    var send = () => {
       sendCurrency(bot, config.target)
     }
 
