@@ -1,4 +1,5 @@
 {
-    "telegram_token" : "",
-    "target" : ""
+    "telegram_token" : "<Use @BOTFATHER to get your token>",
+    "target" : "<ID of the user or name of the channel where to send updates>",
+    "interval" : "<OPTIONAL, interval between checks>"
 }
