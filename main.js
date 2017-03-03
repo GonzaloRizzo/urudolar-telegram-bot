@@ -109,7 +109,7 @@ Promise.all([parseConfigFile("cache.json"), parseConfigFile("config.json")])
     }
 
     send()
-    setInterval(send, 5000)
+    setInterval(send, (config.interval || 300000))
 
   }else{
     console.log("Invalid config.json")
