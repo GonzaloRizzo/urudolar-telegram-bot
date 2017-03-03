@@ -1,2 +1,6 @@
 # urudolar-telegram-bot
-Bot for managing the @urudolarchannel, who sends the Dolar to the user each time it's updated
+This is the bot who manages the Telegram's `@urudolarchannel` channel.
+
+It sends the current currency each time it detects a change
+
+![example](http://i.imgur.com/zYxiUw3.jpg)
