@@ -1,19 +1,17 @@
 {
   "name": "uruguayan-dolar-bot",
   "version": "0.0.2",
-  "description": "Bot for broadcasting the current dolar currency of uruguay",
+  "description": "Bot that broadcast the current dolar currency in Uruguay",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node main.js"
   },
-  "author": "Gonzalo Rizzo",
-  "license": "ISC",
+  "author": "Gonzalo Rizzo <gonza.rizzo98@gmail.com>",
+  "license": "GPL-2.0",
   "dependencies": {
     "cheerio": "^0.22.0",
     "moment": "^2.15.1",
-    "momentjs": "^1.1.17",
     "mz": "^2.6.0",
-    "node-cron": "^1.1.2",
     "node-emoji": "^1.4.1",
     "node-telegram-bot-api": "^0.23.3",
     "request-promise-native": "^1.0.3"
