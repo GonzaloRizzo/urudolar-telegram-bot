@@ -1,21 +1,21 @@
-var TelegramBot = require('node-telegram-bot-api')
-var emoji = require('node-emoji')
-var moment = require('moment')
-var fs = require('mz/fs')
-var rp = require('request-promise-native')
-var cheerio = require('cheerio')
+let TelegramBot = require('node-telegram-bot-api')
+let emoji = require('node-emoji')
+let moment = require('moment')
+let fs = require('mz/fs')
+let rp = require('request-promise-native')
+let cheerio = require('cheerio')
 
 moment.locale('es')
 
-var lastValue = {}
+let lastValue = {}
 
 function getCurrency (callback) {
   return new Promise((resolve, reject) => {
     rp('https://www.portal.brou.com.uy/')
     .then((html) => {
-      var $ = cheerio.load(html)
+      let $ = cheerio.load(html)
 
-      var currency = {
+      let currency = {
         buy: $('.portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(2) > div > p').text().trim().replace(',', '.'),
         sell: $('.portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(4) > div > p').text().trim().replace(',', '.')
       }
@@ -40,16 +40,17 @@ function getUpDownEmoji (val) {
   } else {
     return emoji.get('arrow_right')
   }
+  return emoji.get('arrow_right')
 }
 
 function sendCurrency (bot, target) {
   return getCurrency()
   .then((currentVal) => {
-    if ((currentVal.sell != lastValue.sell) || (currentVal.buy !== lastValue.buy)) {
+    if ((currentVal.sell != lastValue.sell) || (currentVal.buy != lastValue.buy)) {
       console.log(JSON.stringify({timestamp: Date.now(), currency: currentVal}))
 
-      var sell_diff = currentVal.sell - lastValue.sell
-      var buy_diff = currentVal.buy - lastValue.buy
+      let sell_diff = currentVal.sell - lastValue.sell
+      let buy_diff = currentVal.buy - lastValue.buy
       if (!sell_diff) sell_diff = 0
       if (!buy_diff) buy_diff = 0
 
@@ -57,12 +58,12 @@ function sendCurrency (bot, target) {
 
       fs.writeFile('cache.json', JSON.stringify(lastValue, null, 4))
       .then(() => {
-        var msg =
+        let msg =
           emoji.get('moneybag') + ' <b>' + moment().format('LLL') + '</b> \n\n' +
           getUpDownEmoji(buy_diff) + ' <b>Compra:</b> ' + currentVal.buy + ' <b>(' + parseFloat(buy_diff).toFixed(2) + ')</b>' + '\n' +
           getUpDownEmoji(sell_diff) + ' <b>Venta:</b> ' + currentVal.sell + ' <b>(' + parseFloat(sell_diff).toFixed(2) + ')</b>'
 
-        var opt = {
+        let opt = {
           parse_mode: 'HTML'
         }
 
@@ -71,7 +72,7 @@ function sendCurrency (bot, target) {
     }
   })
   .catch((err) => {
-	  if (err.name === 'RequestError') {
+	  if (err.name == 'RequestError') {
 		  console.error("Couldn't connect")
 	  } else {
     		console.error(JSON.stringify(err))
@@ -82,7 +83,7 @@ function sendCurrency (bot, target) {
 function parseConfigFile (file) {
   return new Promise((resolve, reject) => {
     fs.readFile(file)
-    .then((content) => resolve(JSON.parse(content)))
+    .then(content => resolve(JSON.parse(content)))
     .catch(() => resolve({}))
   })
 }
@@ -94,9 +95,9 @@ Promise.all([parseConfigFile('cache.json'), parseConfigFile('config.json')])
   }
 
   if (config.hasOwnProperty('telegram_token') && config.hasOwnProperty('target')) {
-    var bot = new TelegramBot(config.telegram_token)
+    let bot = new TelegramBot(config.telegram_token)
 
-    var send = () => {
+    let send = () => {
       sendCurrency(bot, config.target)
     }
 
