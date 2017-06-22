@@ -1,31 +1,30 @@
-var TelegramBot = require('node-telegram-bot-api');
-var emoji = require('node-emoji');
-var moment = require('moment');
-var fs = require("mz/fs");
-var rp = require('request-promise-native');
-var cheerio = require('cheerio');
+var TelegramBot = require('node-telegram-bot-api')
+var emoji = require('node-emoji')
+var moment = require('moment')
+var fs = require('mz/fs')
+var rp = require('request-promise-native')
+var cheerio = require('cheerio')
 
-moment.locale('es');
+moment.locale('es')
 
-var lastValue={}
+var lastValue = {}
 
-function getCurrency(callback){
-  return new Promise((resolve, reject)=>{
+function getCurrency (callback) {
+  return new Promise((resolve, reject) => {
     rp('https://www.portal.brou.com.uy/')
-    .then((html)=>{
+    .then((html) => {
       var $ = cheerio.load(html)
 
       var currency = {
-        buy:  $(".portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(2) > div > p").text().trim().replace(",", "."),
-        sell: $(".portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(4) > div > p").text().trim().replace(",", ".")
+        buy: $('.portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(2) > div > p').text().trim().replace(',', '.'),
+        sell: $('.portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(4) > div > p').text().trim().replace(',', '.')
       }
-      if(parseInt(currency.buy) && parseInt(currency.sell)){
+      if (parseInt(currency.buy) && parseInt(currency.sell)) {
         resolve(currency)
-      }else {
-
-        reject("Not a Number " + JSON.stringify({
-          buy:  $(".cc-2b").html(),
-          sell: $(".cc-3b").html()
+      } else {
+        reject('Not a Number ' + JSON.stringify({
+          buy: $('.cc-2b').html(),
+          sell: $('.cc-3b').html()
         }))
       }
     })
@@ -33,58 +32,54 @@ function getCurrency(callback){
   })
 }
 
-function getUpDownEmoji(val){
-  if (val>0){
+function getUpDownEmoji (val) {
+  if (val > 0) {
     return emoji.get('arrow_upper_right')
-  }else if (val<0){
+  } else if (val < 0) {
     return emoji.get('arrow_lower_right')
-  }else{
+  } else {
     return emoji.get('arrow_right')
   }
 }
 
-function sendCurrency(bot, target){
+function sendCurrency (bot, target) {
   return getCurrency()
   .then((currentVal) => {
-    if ((currentVal.sell != lastValue.sell) || (currentVal.buy != lastValue.buy)) {
-
-      console.log(JSON.stringify({timestamp:Date.now(), currency:currentVal}))
+    if ((currentVal.sell != lastValue.sell) || (currentVal.buy !== lastValue.buy)) {
+      console.log(JSON.stringify({timestamp: Date.now(), currency: currentVal}))
 
       var sell_diff = currentVal.sell - lastValue.sell
       var buy_diff = currentVal.buy - lastValue.buy
-      if (!sell_diff) sell_diff=0
-      if (!buy_diff) buy_diff=0
+      if (!sell_diff) sell_diff = 0
+      if (!buy_diff) buy_diff = 0
 
-      lastValue=currentVal
+      lastValue = currentVal
 
-      fs.writeFile("cache.json", JSON.stringify(lastValue, null, 4))
-      .then(()=>{
-
+      fs.writeFile('cache.json', JSON.stringify(lastValue, null, 4))
+      .then(() => {
         var msg =
-          emoji.get('moneybag') + " <b>" + moment().format('LLL') + "</b> \n\n" +
-          getUpDownEmoji(buy_diff) + " <b>Compra:</b> " + currentVal.buy  + " <b>(" + parseFloat(buy_diff).toFixed(2)  + ")</b>" + "\n" +
-          getUpDownEmoji(sell_diff)  + " <b>Venta:</b> " + currentVal.sell + " <b>(" + parseFloat(sell_diff ).toFixed(2)+ ")</b>"
+          emoji.get('moneybag') + ' <b>' + moment().format('LLL') + '</b> \n\n' +
+          getUpDownEmoji(buy_diff) + ' <b>Compra:</b> ' + currentVal.buy + ' <b>(' + parseFloat(buy_diff).toFixed(2) + ')</b>' + '\n' +
+          getUpDownEmoji(sell_diff) + ' <b>Venta:</b> ' + currentVal.sell + ' <b>(' + parseFloat(sell_diff).toFixed(2) + ')</b>'
 
         var opt = {
-          parse_mode: "HTML"
+          parse_mode: 'HTML'
         }
 
         return bot.sendMessage(target, msg, opt)
-
       })
     }
   })
-  .catch((err)=>{
-	  if (err.name == "RequestError"){
+  .catch((err) => {
+	  if (err.name === 'RequestError') {
 		  console.error("Couldn't connect")
-	  }else{
+	  } else {
     		console.error(JSON.stringify(err))
-
 	  }
   })
 }
 
-function parseConfigFile(file){
+function parseConfigFile (file) {
   return new Promise((resolve, reject) => {
     fs.readFile(file)
     .then((content) => resolve(JSON.parse(content)))
@@ -92,17 +87,14 @@ function parseConfigFile(file){
   })
 }
 
-
-Promise.all([parseConfigFile("cache.json"), parseConfigFile("config.json")])
+Promise.all([parseConfigFile('cache.json'), parseConfigFile('config.json')])
 .then(([cache, config]) => {
-
-  if (cache.hasOwnProperty("buy") && cache.hasOwnProperty("sell")){
+  if (cache.hasOwnProperty('buy') && cache.hasOwnProperty('sell')) {
     lastValue = cache
   }
 
-
-  if (config.hasOwnProperty("telegram_token") && config.hasOwnProperty("target")){
-    var bot = new TelegramBot(config.telegram_token);
+  if (config.hasOwnProperty('telegram_token') && config.hasOwnProperty('target')) {
+    var bot = new TelegramBot(config.telegram_token)
 
     var send = () => {
       sendCurrency(bot, config.target)
@@ -110,9 +102,7 @@ Promise.all([parseConfigFile("cache.json"), parseConfigFile("config.json")])
 
     send()
     setInterval(send, (config.interval || 300000))
-
-  }else{
-    console.log("Invalid config.json")
+  } else {
+    console.log('Invalid config.json')
   }
-
 })
