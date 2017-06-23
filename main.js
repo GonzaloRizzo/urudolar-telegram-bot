@@ -30,13 +30,13 @@ async function getCurrency () {
   try {
     const currencyTable = $('.portlet-body > table > tbody')
     askRate = currencyTable
-      .find('tr:nth-child(1) > td:nth-child(1) > div > p')
+      .find('tr:nth-child(1) > td:nth-child(2) > div > p')
       .text()
       .trim()
       .replace(',', '.')
 
     bidRate = currencyTable
-      .find('tr:nth-child(1) > td:nth-child(6) > div > p')
+      .find('tr:nth-child(1) > td:nth-child(4) > div > p')
       .text()
       .trim()
       .replace(',', '.')
