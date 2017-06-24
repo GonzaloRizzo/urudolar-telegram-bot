@@ -1,35 +1,54 @@
-let TelegramBot = require('node-telegram-bot-api')
-let emoji = require('node-emoji')
-let moment = require('moment')
-let fs = require('mz/fs')
-let rp = require('request-promise-native')
-let cheerio = require('cheerio')
+const debug = require('debug')('dolar-bot:debug')
+const logger = require('debug')('dolar-bot:log')
+const error = require('debug')('dolar-bot:error')
+const TelegramBot = require('node-telegram-bot-api')
+const emoji = require('node-emoji')
+const moment = require('moment')
+const fs = require('mz/fs')
+const rp = require('request-promise-native')
+const ejs = require('ejs')
+const cheerio = require('cheerio')
 
+error.enable = true
 moment.locale('es')
 
-let lastValue = {}
+let lastCurrency = {}
 
-function getCurrency (callback) {
-  return new Promise((resolve, reject) => {
-    rp('https://www.portal.brou.com.uy/')
-    .then((html) => {
-      let $ = cheerio.load(html)
+async function getCurrency () {
+  let html
+  try {
+    debug('Downloading currency from Brou')
+    html = await rp('https://www.portal.brou.com.uy/')
+  } catch (e) {
+    error('Could not download https://www.portal.brou.com.uy/')
+    return {}
+  }
 
-      let currency = {
-        buy: $('.portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(2) > div > p').text().trim().replace(',', '.'),
-        sell: $('.portlet-body > table > tbody > tr:nth-child(1) > td:nth-child(4) > div > p').text().trim().replace(',', '.')
-      }
-      if (parseInt(currency.buy) && parseInt(currency.sell)) {
-        resolve(currency)
-      } else {
-        reject('Not a Number ' + JSON.stringify({
-          buy: $('.cc-2b').html(),
-          sell: $('.cc-3b').html()
-        }))
-      }
-    })
-    .catch(reject)
-  })
+  const $ = cheerio.load(html)
+
+  let askRate, bidRate
+  try {
+    const currencyTable = $('.portlet-body > table > tbody')
+    askRate = currencyTable
+      .find('tr:nth-child(1) > td:nth-child(2) > div > p')
+      .text()
+      .trim()
+      .replace(',', '.')
+
+    bidRate = currencyTable
+      .find('tr:nth-child(1) > td:nth-child(4) > div > p')
+      .text()
+      .trim()
+      .replace(',', '.')
+  } catch (e) {
+    error('Could not parse html!')
+  }
+
+  if (parseInt(askRate) && parseInt(bidRate)) {
+    return { askRate, bidRate }
+  } else {
+    error('Not a number: %O', { askRate, bidRate })
+  }
 }
 
 function getUpDownEmoji (val) {
@@ -40,70 +59,93 @@ function getUpDownEmoji (val) {
   } else {
     return emoji.get('arrow_right')
   }
-  return emoji.get('arrow_right')
 }
 
-function sendCurrency (bot, target) {
-  return getCurrency()
-  .then((currentVal) => {
-    if ((currentVal.sell != lastValue.sell) || (currentVal.buy != lastValue.buy)) {
-      console.log(JSON.stringify({timestamp: Date.now(), currency: currentVal}))
+async function sendCurrency (bot, target) {
+  const currency = await getCurrency()
+  debug('Downloaded currency: %O', currency)
+  debug('Cached currency:     %O', lastCurrency)
+  if (
+      currency &&
+      (
+        currency.bidRate !== lastCurrency.bidRate ||
+        currency.askRate !== lastCurrency.askRate
+      )
+  ) {
+    debug('Diff found!')
+    logger({timestamp: new Date(), currency: currency})
+    let bidDiff = currency.bidRate - lastCurrency.bidRate || 0
+    let askDiff = currency.askRate - lastCurrency.askRate || 0
 
-      let sell_diff = currentVal.sell - lastValue.sell
-      let buy_diff = currentVal.buy - lastValue.buy
-      if (!sell_diff) sell_diff = 0
-      if (!buy_diff) buy_diff = 0
+    lastCurrency = currency
 
-      lastValue = currentVal
+    debug('Caching currency')
+    await fs.writeFile('cache.json', JSON.stringify(lastCurrency, null, 4))
 
-      fs.writeFile('cache.json', JSON.stringify(lastValue, null, 4))
-      .then(() => {
-        let msg =
-          emoji.get('moneybag') + ' <b>' + moment().format('LLL') + '</b> \n\n' +
-          getUpDownEmoji(buy_diff) + ' <b>Compra:</b> ' + currentVal.buy + ' <b>(' + parseFloat(buy_diff).toFixed(2) + ')</b>' + '\n' +
-          getUpDownEmoji(sell_diff) + ' <b>Venta:</b> ' + currentVal.sell + ' <b>(' + parseFloat(sell_diff).toFixed(2) + ')</b>'
-
-        let opt = {
-          parse_mode: 'HTML'
-        }
-
-        return bot.sendMessage(target, msg, opt)
-      })
+    const template = await fs.readFile('template.ejs', 'utf-8')
+    const context = {
+      date: moment().format('LLL'),
+      emoji: {
+        icon: emoji.get('moneybag'),
+        ask_emoji: getUpDownEmoji(askDiff),
+        bid_emoji: getUpDownEmoji(bidDiff),
+      },
+      ask_diff: parseFloat(askDiff).toFixed(2),
+      bid_diff: parseFloat(bidDiff).toFixed(2),
+      ask_rate: currency.askRate,
+      bid_rate: currency.bidRate
     }
-  })
-  .catch((err) => {
-	  if (err.name == 'RequestError') {
-		  console.error("Couldn't connect")
-	  } else {
-    		console.error(JSON.stringify(err))
-	  }
-  })
+
+    debug('Rendering template with the following context: \n %O', context)
+    const msg = ejs.render(template, context)
+
+    try {
+      debug('Sending update to %d', target)
+      return await bot.sendMessage(target, msg, {
+        parse_mode: 'HTML'
+      })
+    } catch (e) {
+      error(e) // TODO: Queue to send on internet reconect
+    }
+  }
 }
 
-function parseConfigFile (file) {
-  return new Promise((resolve, reject) => {
-    fs.readFile(file)
-    .then(content => resolve(JSON.parse(content)))
-    .catch(() => resolve({}))
-  })
+async function parseConfigFile (file) {
+  try {
+    return JSON.parse(await fs.readFile(file))
+  } catch (e) {
+    return {}
+  }
 }
 
-Promise.all([parseConfigFile('cache.json'), parseConfigFile('config.json')])
-.then(([cache, config]) => {
-  if (cache.hasOwnProperty('buy') && cache.hasOwnProperty('sell')) {
-    lastValue = cache
+async function main () {
+  const [cache, config] = await Promise.all([
+    parseConfigFile('cache.json'),
+    parseConfigFile('config.json')
+  ])
+
+  if (
+    cache.hasOwnProperty('askRate') &&
+    cache.hasOwnProperty('bidRate')
+  ) {
+    lastCurrency = cache
   }
 
-  if (config.hasOwnProperty('telegram_token') && config.hasOwnProperty('target')) {
+  if (
+    config.hasOwnProperty('telegram_token') &&
+    config.hasOwnProperty('target')
+  ) {
     let bot = new TelegramBot(config.telegram_token)
 
-    let send = () => {
+    let checkUpdates = () => {
       sendCurrency(bot, config.target)
     }
 
-    send()
-    setInterval(send, (config.interval || 300000))
+    checkUpdates()
+    setInterval(checkUpdates, (config.interval || 300000))
   } else {
-    console.log('Invalid config.json')
+    error('Invalid config.json')
   }
-})
+}
+
+main()
