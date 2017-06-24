@@ -21,7 +21,7 @@ async function getCurrency () {
     html = await rp('https://www.portal.brou.com.uy/')
   } catch (e) {
     error('Could not download https://www.portal.brou.com.uy/')
-    return {}
+    throw e
   }
 
   const $ = cheerio.load(html)
@@ -42,12 +42,14 @@ async function getCurrency () {
       .replace(',', '.')
   } catch (e) {
     error('Could not parse html!')
+    throw e
   }
 
   if (parseInt(askRate) && parseInt(bidRate)) {
     return { askRate, bidRate }
   } else {
     error('Not a number: %O', { askRate, bidRate })
+    throw Error('Not a number')
   }
 }
 
