@@ -2,9 +2,9 @@
   "name": "uruguayan-dolar-bot",
   "version": "0.0.2",
   "description": "Bot that broadcast the current dolar currency in Uruguay",
-  "main": "main.js",
+  "main": "src/main.js",
   "scripts": {
-    "start": "node main.js"
+    "start": "node src/main.js"
   },
   "author": "Gonzalo Rizzo <gonza.rizzo98@gmail.com>",
   "license": "GPL-2.0",
