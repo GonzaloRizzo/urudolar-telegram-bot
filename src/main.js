@@ -9,10 +9,18 @@ const rp = require('request-promise-native')
 const ejs = require('ejs')
 const cheerio = require('cheerio')
 
+const config = require('../config/config')
+let lastCurrency = require('../config/cache')
+
 error.enable = true
 moment.locale('es')
 
-let lastCurrency = {}
+if (!(config['telegram_token'] && config['target'])) {
+  error('Invalid config.json')
+  process.exit(1)
+}
+
+const bot = new TelegramBot(config.telegram_token)
 
 async function getCurrency () {
   let html
@@ -63,28 +71,20 @@ function getUpDownEmoji (val) {
   }
 }
 
-async function sendCurrency (bot, target) {
+async function checkCurrency () {
   const currency = await getCurrency()
   debug('Downloaded currency: %O', currency)
   debug('Cached currency:     %O', lastCurrency)
+
   if (
-      currency &&
-      (
-        currency.bidRate !== lastCurrency.bidRate ||
-        currency.askRate !== lastCurrency.askRate
-      )
+    currency.bidRate !== lastCurrency.bidRate ||
+    currency.askRate !== lastCurrency.askRate
   ) {
     debug('Diff found!')
     logger({timestamp: new Date(), currency: currency})
     let bidDiff = currency.bidRate - lastCurrency.bidRate || 0
     let askDiff = currency.askRate - lastCurrency.askRate || 0
 
-    lastCurrency = currency
-
-    debug('Caching currency')
-    await fs.writeFile('cache.json', JSON.stringify(lastCurrency, null, 4))
-
-    const template = await fs.readFile('template.ejs', 'utf-8')
     const context = {
       date: moment().format('LLL'),
       emoji: {
@@ -99,55 +99,21 @@ async function sendCurrency (bot, target) {
     }
 
     debug('Rendering template with the following context: \n %O', context)
+    const template = await fs.readFile('template.ejs', 'utf-8')
     const msg = ejs.render(template, context)
 
-    try {
-      debug('Sending update to %d', target)
-      return await bot.sendMessage(target, msg, {
-        parse_mode: 'HTML'
-      })
-    } catch (e) {
-      error(e) // TODO: Queue to send on internet reconect
-    }
+    debug('Sending update to %d', config.target)
+    await bot.sendMessage(config.target, msg, {
+      parse_mode: 'HTML'
+    })
+
+    debug('Caching currency')
+    lastCurrency = currency
+    await fs.writeFile(
+      '../config/cache.json', JSON.stringify(lastCurrency, null, 4)
+    )
   }
 }
 
-async function parseConfigFile (file) {
-  try {
-    return JSON.parse(await fs.readFile(file))
-  } catch (e) {
-    return {}
-  }
-}
-
-async function main () {
-  const [cache, config] = await Promise.all([
-    parseConfigFile('cache.json'),
-    parseConfigFile('config.json')
-  ])
-
-  if (
-    cache.hasOwnProperty('askRate') &&
-    cache.hasOwnProperty('bidRate')
-  ) {
-    lastCurrency = cache
-  }
-
-  if (
-    config.hasOwnProperty('telegram_token') &&
-    config.hasOwnProperty('target')
-  ) {
-    let bot = new TelegramBot(config.telegram_token)
-
-    let checkUpdates = () => {
-      sendCurrency(bot, config.target)
-    }
-
-    checkUpdates()
-    setInterval(checkUpdates, (config.interval || 300000))
-  } else {
-    error('Invalid config.json')
-  }
-}
-
-main()
+checkCurrency()
+setInterval(checkCurrency, config.interval || 5 * 60 * 1000)
