@@ -8,6 +8,7 @@ const fs = require('mz/fs')
 const rp = require('request-promise-native')
 const ejs = require('ejs')
 const cheerio = require('cheerio')
+const path = require('path')
 
 const config = require('../config/config')
 let lastCurrency = require('../config/cache')
@@ -99,7 +100,8 @@ async function checkCurrency () {
     }
 
     debug('Rendering template with the following context: \n %O', context)
-    const template = await fs.readFile('template.ejs', 'utf-8')
+    const templatePath = path.join(__dirname, 'template.ejs')
+    const template = await fs.readFile(templatePath, 'utf-8')
     const msg = ejs.render(template, context)
 
     debug('Sending update to %d', config.target)
@@ -109,8 +111,9 @@ async function checkCurrency () {
 
     debug('Caching currency')
     lastCurrency = currency
+    cachePath = path.join(__dirname, '..', 'config', 'cache.json')
     await fs.writeFile(
-      '../config/cache.json', JSON.stringify(lastCurrency, null, 4)
+      cachePath, JSON.stringify(lastCurrency, null, 4)
     )
   }
 }
