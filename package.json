@@ -4,7 +4,8 @@
   "description": "Bot that broadcast the current dolar currency in Uruguay",
   "main": "src/main.js",
   "scripts": {
-    "start": "node src/main.js"
+    "start": "node src/main.js",
+    "debug": "env DEBUG='dolar-bot:*' node src/main.js"
   },
   "author": "Gonzalo Rizzo <gonza.rizzo98@gmail.com>",
   "license": "GPL-2.0",
