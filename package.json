@@ -1,6 +1,6 @@
 {
   "name": "uruguayan-dolar-bot",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Bot that broadcast the current dolar currency in Uruguay",
   "main": "src/main.js",
   "scripts": {
