@@ -11,6 +11,9 @@ const cheerio = require('cheerio')
 const path = require('path')
 
 const config = require('../config/config')
+
+const ADMINID = config['admin_id']
+
 let lastCurrency = require('../config/cache')
 
 error.enable = true
@@ -22,6 +25,14 @@ if (!(config['telegram_token'] && config['target'])) {
 }
 
 const bot = new TelegramBot(config.telegram_token)
+
+async function messageAdmin(message){
+  if (!ADMINID) {
+    console.error('Unable to send message. Admin ID not set')
+    return
+  }
+  await bot.sendMessage(ADMINID, `<pre>${message}</pre>`, { parse_mode: 'HTML'})
+}
 
 async function getCurrency () {
   let html
@@ -122,5 +133,22 @@ async function checkCurrency () {
   }
 }
 
-checkCurrency()
-setInterval(checkCurrency, config.interval || 5 * 60 * 1000)
+const delay = ms => new Promise(res => setTimeout(res, ms))
+
+async function schedule(fn, msDelay){
+  async function runner(){
+    try {
+      await fn()
+      await delay(msDelay)
+      await runner()
+    } catch(e){
+      console.error(e)
+      await messageAdmin(e)
+      await delay(msDelay)
+      await runner()
+    }
+  }
+  await runner()
+}
+
+schedule(checkCurrency, config.interval || 5 * 60 * 1000)
