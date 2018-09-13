@@ -72,14 +72,18 @@ function getUpDownEmoji (val) {
   }
 }
 
+function difference(a, b){
+    return Math.abs(a-b)
+}
+
 async function checkCurrency () {
   const currency = await getCurrency()
   debug('Downloaded currency: %O', currency)
   debug('Cached currency:     %O', lastCurrency)
 
   if (
-    currency.bidRate !== lastCurrency.bidRate ||
-    currency.askRate !== lastCurrency.askRate
+    difference(currency.bidRate, lastCurrency.bidRate) >= 0.05 ||
+    difference(currency.askRate, lastCurrency.askRate) >= 0.05
   ) {
     debug('Diff found!')
     logger({timestamp: new Date(), currency: currency})
