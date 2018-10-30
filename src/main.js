@@ -46,9 +46,10 @@ async function getCurrency () {
 
   const $ = cheerio.load(html)
 
-  let askRate, bidRate
+  let askRate, bidRate, prefAskRate, prefBidRate
   try {
     const currencyTable = $('.portlet-body > table > tbody')
+
     askRate = currencyTable
       .find('tr:nth-child(1) > td:nth-child(2) > div > p')
       .text()
@@ -60,15 +61,30 @@ async function getCurrency () {
       .text()
       .trim()
       .replace(',', '.')
+
+    prefAskRate = currencyTable
+      .find('tr:nth-child(2) > td:nth-child(2) > div > p')
+      .text()
+      .trim()
+      .replace(',', '.')
+
+    prefBidRate = currencyTable
+      .find('tr:nth-child(2) > td:nth-child(4) > div > p')
+      .text()
+      .trim()
+      .replace(',', '.')
+
   } catch (e) {
     error('Could not parse html!')
     throw e
   }
 
-  if (parseInt(askRate) && parseInt(bidRate)) {
-    return { askRate, bidRate }
+  if (parseInt(askRate) && parseInt(bidRate)
+      && parseInt(prefAskRate) && parseInt(prefBidRate)) {
+    return { askRate, bidRate, prefAskRate, prefBidRate }
   } else {
-    error('Not a number: %O', { askRate, bidRate })
+    error('Not a number: %O', { askRate, bidRate,
+                                prefAskRate, prefBidRate })
     throw Error('Not a number')
   }
 }
@@ -94,12 +110,16 @@ async function checkCurrency () {
 
   if (
     difference(currency.bidRate, lastCurrency.bidRate) >= 0.05 ||
-    difference(currency.askRate, lastCurrency.askRate) >= 0.05
+    difference(currency.askRate, lastCurrency.askRate) >= 0.05 ||
+    difference(currency.prefAskRate, lastCurrency.prefAskRate) >= 0.05 ||
+    difference(currency.prefBidRate, lastCurrency.prefBidRate) >= 0.05
   ) {
     debug('Diff found!')
     logger({timestamp: new Date(), currency: currency})
     let bidDiff = currency.bidRate - lastCurrency.bidRate || 0
     let askDiff = currency.askRate - lastCurrency.askRate || 0
+    let prefBidDiff = currency.prefBidRate - lastCurrency.prefBidRate || 0
+    let prefAskDiff = currency.prefAskRate - lastCurrency.prefAskRate || 0
 
     const context = {
       date: moment().format('LLL'),
@@ -107,11 +127,17 @@ async function checkCurrency () {
         icon: emoji.get('moneybag'),
         ask_emoji: getUpDownEmoji(askDiff),
         bid_emoji: getUpDownEmoji(bidDiff),
+        pref_ask_emoji: getUpDownEmoji(prefAskDiff),
+        pref_bid_emoji: getUpDownEmoji(prefBidDiff),
       },
       ask_diff: parseFloat(askDiff).toFixed(2),
       bid_diff: parseFloat(bidDiff).toFixed(2),
+      pref_ask_diff: parseFloat(prefAskDiff).toFixed(2),
+      pref_bid_diff: parseFloat(prefBidDiff).toFixed(2),
       ask_rate: currency.askRate,
-      bid_rate: currency.bidRate
+      bid_rate: currency.bidRate,
+      pref_ask_rate: currency.prefAskRate,
+      pref_bid_rate: currency.prefBidRate
     }
 
     debug('Rendering template with the following context: \n %O', context)
